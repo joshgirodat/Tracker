@@ -265,7 +265,7 @@ select option { background: #1e1e21; }
       <table id="dash-rec-table"></table>
     </div>
     <div class="card">
-      <div class="card-title">Variable spending</div>
+      <div class="card-title">Variable spending — this month</div>
       <table id="dash-var-table"></table>
     </div>
   </div>
@@ -298,11 +298,11 @@ select option { background: #1e1e21; }
 
 <div class="tab" id="tab-expenses">
   <div class="page-title">Expenses</div>
-  <div class="page-sub">Recurring bills auto-count every month. Variable spending tracks against your budget.</div>
+  <div class="page-sub">Recurring bills auto-count every month. Variable spending resets each month based on your log.</div>
   <div class="metrics">
     <div class="metric"><div class="metric-label">Income this month</div><div class="metric-value c-accent" id="exp-income">—</div></div>
     <div class="metric"><div class="metric-label">Total budgeted</div><div class="metric-value" id="exp-budgeted">—</div></div>
-    <div class="metric"><div class="metric-label">Total spent</div><div class="metric-value" id="exp-spent">—</div></div>
+    <div class="metric"><div class="metric-label">Spent this month</div><div class="metric-value" id="exp-spent">—</div></div>
     <div class="metric"><div class="metric-label">Remaining</div><div class="metric-value" id="exp-remaining">—</div></div>
   </div>
   <div class="card">
@@ -318,7 +318,7 @@ select option { background: #1e1e21; }
     </div>
   </div>
   <div class="card">
-    <div class="card-title">Variable spending</div>
+    <div class="card-title">Variable spending — this month only</div>
     <table>
       <thead><tr><th>Category</th><th class="right">Budget</th><th class="right">Spent</th><th class="right">Left</th><th style="width:32px"></th></tr></thead>
       <tbody id="variable-body"></tbody>
@@ -353,9 +353,13 @@ select option { background: #1e1e21; }
     </div>
   </div>
   <div class="card">
-    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;flex-wrap:wrap;gap:8px;">
       <div class="card-title" style="margin:0">All entries</div>
-      <button class="btn-ghost" onclick="exportLog()">&#8595; Export CSV</button>
+      <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+        <span style="font-size:11px;color:var(--muted);">Month:</span>
+        <select id="log-month-filter" onchange="renderLog()" style="width:auto;height:32px;font-size:12px;padding:0 28px 0 10px;"></select>
+        <button class="btn-ghost" onclick="exportLog()">&#8595; Export CSV</button>
+      </div>
     </div>
     <div style="overflow-x:auto;-webkit-overflow-scrolling:touch;">
     <table style="table-layout:fixed;min-width:520px;">
@@ -409,7 +413,6 @@ select option { background: #1e1e21; }
 <script>
 var SUPABASE_URL = 'https://blefcpoiitzpvnfviagp.supabase.co';
 var SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJsZWZjcG9paXR6cHZuZnZpYWdwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY2Mzg2NTAsImV4cCI6MjA5MjIxNDY1MH0.CLtnRTjuLe5vqR-4mHMhtPmk1KhqHIblveCwye8VrEY';
-
 var PASS = 'JoshKylie';
 
 function checkPassword() {
@@ -431,12 +434,13 @@ if (sessionStorage.getItem('bt_auth') === '1') {
   document.getElementById('password-screen').style.display = 'none';
   document.getElementById('loading').style.display = 'flex';
 }
-var sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
+var sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 var MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December'];
 var now = new Date();
 var CUR_MONTH = now.getMonth();
 var CUR_YEAR = now.getFullYear();
+var CUR_MONTH_PREFIX = CUR_YEAR + '-' + String(CUR_MONTH + 1).padStart(2, '0');
 
 var D = { income: null, recurring: [], variable: [], log: [], deposits: [] };
 
@@ -463,7 +467,7 @@ async function loadAll() {
       sb.from('income').select('*').single(),
       sb.from('recurring').select('*').order('id'),
       sb.from('variable').select('*').order('id'),
-      sb.from('expense_log').select('*').order('created_at', {ascending: false}),
+      sb.from('expense_log').select('*').order('date', {ascending: false}),
       sb.from('moving_deposits').select('*').order('created_at', {ascending: false})
     ]);
     D.income = res[0].data;
@@ -472,12 +476,19 @@ async function loadAll() {
     D.log = res[3].data || [];
     D.deposits = res[4].data || [];
     document.getElementById('loading').style.display = 'none';
+    populateLogMonthFilter();
     renderAll();
     setSyncState('synced');
   } catch(e) {
     showToast('Failed to load data — check your connection', true);
     document.getElementById('loading').style.display = 'none';
   }
+}
+
+function getCurrentMonthLog() {
+  return D.log.filter(function(e) {
+    return e.date && e.date.startsWith(CUR_MONTH_PREFIX);
+  });
 }
 
 function getIncomeTotal() {
@@ -488,7 +499,9 @@ function getIncomeTotal() {
 
 function getSpentByCategory() {
   var map = {};
-  D.log.forEach(function(e) { map[e.category] = (map[e.category] || 0) + Number(e.amount); });
+  getCurrentMonthLog().forEach(function(e) {
+    map[e.category] = (map[e.category] || 0) + Number(e.amount);
+  });
   return map;
 }
 
@@ -497,7 +510,7 @@ function getRecurringTotal() {
 }
 
 function getVarSpentTotal() {
-  return D.log.reduce(function(s, e) { return s + Number(e.amount); }, 0);
+  return getCurrentMonthLog().reduce(function(s, e) { return s + Number(e.amount); }, 0);
 }
 
 function getTotalSpent() { return getRecurringTotal() + getVarSpentTotal(); }
@@ -704,13 +717,41 @@ function updateLogCatSelect() {
   }).join('');
 }
 
+function populateLogMonthFilter() {
+  var sel = document.getElementById('log-month-filter');
+  var months = {};
+  D.log.forEach(function(e) {
+    if (e.date) {
+      var prefix = e.date.substring(0, 7);
+      var parts = prefix.split('-');
+      months[prefix] = MONTHS[parseInt(parts[1]) - 1] + ' ' + parts[0];
+    }
+  });
+  if (!months[CUR_MONTH_PREFIX]) {
+    months[CUR_MONTH_PREFIX] = MONTHS[CUR_MONTH] + ' ' + CUR_YEAR;
+  }
+  var sorted = Object.keys(months).sort().reverse();
+  sel.innerHTML = sorted.map(function(k) {
+    return '<option value="' + k + '"' + (k === CUR_MONTH_PREFIX ? ' selected' : '') + '>' + months[k] + '</option>';
+  }).join('');
+}
+
+function getSelectedLogMonth() {
+  var sel = document.getElementById('log-month-filter');
+  return sel ? sel.value : CUR_MONTH_PREFIX;
+}
+
 function renderLog() {
+  var filterMonth = getSelectedLogMonth();
+  var filtered = D.log.filter(function(e) {
+    return e.date && e.date.startsWith(filterMonth);
+  });
   var tbody = document.getElementById('log-body');
-  if (D.log.length === 0) {
-    tbody.innerHTML = '<tr><td colspan="6" class="empty-state">No entries yet — add one above</td></tr>';
+  if (filtered.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="6" class="empty-state">No entries for this month</td></tr>';
     return;
   }
-  tbody.innerHTML = D.log.map(function(e) {
+  tbody.innerHTML = filtered.map(function(e) {
     return '<tr>' +
       '<td class="mono muted">' + e.date + '</td>' +
       '<td>' + e.description + '</td>' +
@@ -748,6 +789,7 @@ async function addLogEntry() {
   document.getElementById('log-desc').value = '';
   document.getElementById('log-amount').value = '';
   btn.disabled = false;
+  populateLogMonthFilter();
   setSyncState('synced'); renderAll(); showToast('Entry logged');
 }
 
@@ -756,18 +798,21 @@ async function deleteLog(id) {
   var res = await sb.from('expense_log').delete().eq('id', id);
   if (res.error) { showToast('Failed to delete', true); setSyncState('error'); return; }
   D.log = D.log.filter(function(e) { return e.id !== id; });
+  populateLogMonthFilter();
   setSyncState('synced'); renderAll(); showToast('Deleted');
 }
 
 function exportLog() {
-  if (D.log.length === 0) { showToast('Nothing to export'); return; }
+  var filterMonth = getSelectedLogMonth();
+  var filtered = D.log.filter(function(e) { return e.date && e.date.startsWith(filterMonth); });
+  if (filtered.length === 0) { showToast('Nothing to export'); return; }
   var rows = [['Date','Description','Category','Amount','Payment']].concat(
-    D.log.map(function(e) { return [e.date, '"' + e.description.replace(/"/g,'""') + '"', e.category, Number(e.amount).toFixed(2), e.payment]; })
+    filtered.map(function(e) { return [e.date, '"' + e.description.replace(/"/g,'""') + '"', e.category, Number(e.amount).toFixed(2), e.payment]; })
   );
   var csv = rows.map(function(r) { return r.join(','); }).join('\n');
   var a = document.createElement('a');
   a.href = URL.createObjectURL(new Blob([csv], {type:'text/csv'}));
-  a.download = 'expense_log_' + CUR_YEAR + '.csv';
+  a.download = 'expense_log_' + filterMonth + '.csv';
   a.click();
   showToast('CSV exported');
 }
@@ -784,7 +829,7 @@ function renderMoving() {
   var p = pct(totalSaved, totalGoal);
   document.getElementById('mov-saved').textContent = fmt(totalSaved);
   document.getElementById('mov-pct').textContent = p + '%';
-  var monthSet = new Set(D.deposits.map(function(d) { return d.date.substring(0,7); }));
+  var monthSet = new Set(D.deposits.map(function(d) { return d.date ? d.date.substring(0,7) : ''; }));
   var monthlyAvg = monthSet.size > 0 ? totalSaved / monthSet.size : 0;
   var monthsLeft = monthlyAvg > 0 ? Math.ceil((totalGoal - totalSaved) / monthlyAvg) : null;
   document.getElementById('mov-months').textContent = monthsLeft || '—';
