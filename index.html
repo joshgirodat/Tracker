@@ -84,6 +84,10 @@ main { max-width: 1000px; margin: 0 auto; padding: 2rem 2rem 4rem; }
 .c-accent { color: var(--accent); }
 .c-warn { color: var(--warn); }
 
+.savings-bar-track { height: 4px; background: var(--surface2); border-radius: 2px; overflow: hidden; margin-top: 8px; }
+.savings-bar-fill { height: 100%; border-radius: 2px; background: var(--accent); transition: width 0.5s ease; }
+.savings-bar-sub { font-family: 'DM Mono', monospace; font-size: 10px; color: var(--muted); margin-top: 5px; }
+
 .card { background: var(--surface); border: 1px solid var(--border); border-radius: 14px; padding: 1.25rem 1.5rem; margin-bottom: 1.25rem; }
 .card-title { font-size: 10px; font-weight: 600; letter-spacing: 0.12em; text-transform: uppercase; color: var(--muted); margin-bottom: 1rem; }
 
@@ -158,12 +162,6 @@ select option { background: #1e1e21; }
 .toast.error { background: var(--danger); color: white; }
 
 .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 1.25rem; }
-.goal-row { display: flex; align-items: center; gap: 1rem; padding: 0.75rem 0; border-bottom: 1px solid var(--border); }
-.goal-row:last-child { border-bottom: none; }
-.goal-info { flex: 1; }
-.goal-label { font-size: 13px; font-weight: 500; margin-bottom: 2px; }
-.goal-sub { font-size: 11px; color: var(--muted); font-family: 'DM Mono', monospace; }
-.goal-pct { font-family: 'DM Mono', monospace; font-size: 13px; color: var(--accent); min-width: 36px; text-align: right; }
 
 @media (max-width: 680px) {
   .two-col { grid-template-columns: 1fr; }
@@ -189,14 +187,10 @@ select option { background: #1e1e21; }
   table { font-size: 12px; }
   td, th { padding: 8px 6px; }
   input, select { font-size: 16px; }
-  .goal-row { gap: 0.5rem; }
   .two-col .card:first-child { margin-bottom: 0; }
   div[style*="grid-template-columns:1fr 130px auto"] { grid-template-columns: 1fr 1fr !important; }
   div[style*="grid-template-columns:1fr 130px auto"] .field:last-child { grid-column: span 2; }
   div[style*="grid-template-columns:1fr 130px auto"] .field:last-child button { width: 100%; }
-  div[style*="grid-template-columns:160px 130px auto"] { grid-template-columns: 1fr 1fr !important; }
-  div[style*="grid-template-columns:160px 130px auto"] .field:last-child { grid-column: span 2; }
-  div[style*="grid-template-columns:160px 130px auto"] .field:last-child button { width: 100%; }
   div[style*="grid-template-columns:1fr 1fr"] { grid-template-columns: 1fr 1fr !important; }
 }
 </style>
@@ -230,23 +224,38 @@ select option { background: #1e1e21; }
   <button class="nav-btn" onclick="switchTab('income',this)">Income</button>
   <button class="nav-btn" onclick="switchTab('expenses',this)">Expenses</button>
   <button class="nav-btn" onclick="switchTab('log',this)">Log</button>
-  <button class="nav-btn" onclick="switchTab('moving',this)">Moving Fund</button>
+  <button class="nav-btn" onclick="switchTab('pnl',this)">P&L</button>
 </nav>
 
 <main>
 
+<!-- DASHBOARD -->
 <div class="tab active" id="tab-dashboard">
   <div class="page-title">Dashboard</div>
   <div class="page-sub" id="dash-sub">—</div>
   <div class="metrics">
-    <div class="metric"><div class="metric-label">Total income</div><div class="metric-value c-accent" id="d-income">—</div></div>
-    <div class="metric"><div class="metric-label">Total spent</div><div class="metric-value" id="d-spent">—</div></div>
-    <div class="metric"><div class="metric-label">Remaining</div><div class="metric-value" id="d-remaining">—</div></div>
-    <div class="metric"><div class="metric-label">Move savings</div><div class="metric-value c-warn" id="d-move">—</div></div>
+    <div class="metric">
+      <div class="metric-label">Total income</div>
+      <div class="metric-value c-accent" id="d-income">—</div>
+    </div>
+    <div class="metric">
+      <div class="metric-label">Total spent</div>
+      <div class="metric-value" id="d-spent">—</div>
+    </div>
+    <div class="metric">
+      <div class="metric-label">Remaining</div>
+      <div class="metric-value" id="d-remaining">—</div>
+    </div>
+    <div class="metric">
+      <div class="metric-label">Savings rate</div>
+      <div class="metric-value" id="d-savings-pct">—</div>
+      <div class="savings-bar-track"><div class="savings-bar-fill" id="d-savings-bar" style="width:0%"></div></div>
+      <div class="savings-bar-sub" id="d-savings-sub">of income saved</div>
+    </div>
   </div>
   <div class="two-col">
     <div class="card">
-      <div class="card-title">Income</div>
+      <div class="card-title">Income breakdown</div>
       <table>
         <tr><td>Joshua</td><td class="right mono" id="d-joshua">—</td></tr>
         <tr><td>Kylie</td><td class="right mono" id="d-kylie">—</td></tr>
@@ -255,22 +264,17 @@ select option { background: #1e1e21; }
       </table>
     </div>
     <div class="card">
-      <div class="card-title">Moving fund</div>
-      <div id="dash-moving"></div>
-    </div>
-  </div>
-  <div class="two-col">
-    <div class="card">
-      <div class="card-title">Recurring bills</div>
-      <table id="dash-rec-table"></table>
-    </div>
-    <div class="card">
       <div class="card-title">Variable spending — this month</div>
       <table id="dash-var-table"></table>
     </div>
   </div>
+  <div class="card">
+    <div class="card-title">Recurring bills</div>
+    <table id="dash-rec-table"></table>
+  </div>
 </div>
 
+<!-- INCOME -->
 <div class="tab" id="tab-income">
   <div class="page-title">Income</div>
   <div class="page-sub">Fixed monthly + sales income</div>
@@ -296,6 +300,7 @@ select option { background: #1e1e21; }
   </div>
 </div>
 
+<!-- EXPENSES -->
 <div class="tab" id="tab-expenses">
   <div class="page-title">Expenses</div>
   <div class="page-sub">Recurring bills auto-count every month. Variable spending resets each month based on your log.</div>
@@ -331,6 +336,7 @@ select option { background: #1e1e21; }
   </div>
 </div>
 
+<!-- LOG -->
 <div class="tab" id="tab-log">
   <div class="page-title">Expense log</div>
   <div class="page-sub">Log variable purchases — they auto-update your spending totals</div>
@@ -371,39 +377,34 @@ select option { background: #1e1e21; }
   </div>
 </div>
 
-<div class="tab" id="tab-moving">
-  <div class="page-title">Moving Fund</div>
-  <div class="page-sub">Medford &#8594; Tampa — $35,000 goal</div>
+<!-- P&L -->
+<div class="tab" id="tab-pnl">
+  <div class="page-title">Profit &amp; Loss</div>
+  <div class="page-sub">Monthly breakdown — income, spending, and savings across all time</div>
   <div class="metrics">
-    <div class="metric"><div class="metric-label">Total goal</div><div class="metric-value mono">$35,000</div></div>
-    <div class="metric"><div class="metric-label">Total saved</div><div class="metric-value c-accent" id="mov-saved">$0.00</div></div>
-    <div class="metric"><div class="metric-label">% complete</div><div class="metric-value" id="mov-pct">0%</div></div>
-    <div class="metric"><div class="metric-label">Months remaining</div><div class="metric-value c-warn" id="mov-months">—</div></div>
+    <div class="metric"><div class="metric-label">Best savings month</div><div class="metric-value c-green" id="pnl-best">—</div></div>
+    <div class="metric"><div class="metric-label">Avg monthly savings</div><div class="metric-value c-accent" id="pnl-avg-save">—</div></div>
+    <div class="metric"><div class="metric-label">Avg savings rate</div><div class="metric-value" id="pnl-avg-rate">—</div></div>
+    <div class="metric"><div class="metric-label">Total saved (all time)</div><div class="metric-value c-accent" id="pnl-total-saved">—</div></div>
   </div>
   <div class="card">
-    <div class="card-title">Fund breakdown</div>
-    <div id="moving-funds"></div>
-  </div>
-  <div class="card">
-    <div class="card-title">Add deposit</div>
-    <div class="form-grid" style="grid-template-columns:160px 130px auto;">
-      <div class="field"><label>Fund</label>
-        <select id="mov-fund">
-          <option value="transportation">Transportation</option>
-          <option value="rent">Rent</option>
-          <option value="living">Living</option>
-        </select>
-      </div>
-      <div class="field"><label>Amount ($)</label><input type="number" id="mov-amount" placeholder="0.00" min="0" step="0.01"></div>
-      <div class="field"><label>&nbsp;</label><button class="btn-primary" onclick="addMovingDeposit()">+ Deposit</button></div>
-    </div>
-  </div>
-  <div class="card">
-    <div class="card-title">Deposit history</div>
-    <table>
-      <thead><tr><th>Date</th><th>Fund</th><th class="right">Amount</th><th style="width:32px"></th></tr></thead>
-      <tbody id="moving-log-body"></tbody>
+    <div class="card-title">Monthly summary</div>
+    <div style="overflow-x:auto;-webkit-overflow-scrolling:touch;">
+    <table style="min-width:560px;">
+      <thead>
+        <tr>
+          <th>Month</th>
+          <th class="right">Income</th>
+          <th class="right">Recurring</th>
+          <th class="right">Variable</th>
+          <th class="right">Total spent</th>
+          <th class="right">Saved</th>
+          <th class="right">Rate</th>
+        </tr>
+      </thead>
+      <tbody id="pnl-body"></tbody>
     </table>
+    </div>
   </div>
 </div>
 
@@ -442,7 +443,7 @@ var CUR_MONTH = now.getMonth();
 var CUR_YEAR = now.getFullYear();
 var CUR_MONTH_PREFIX = CUR_YEAR + '-' + String(CUR_MONTH + 1).padStart(2, '0');
 
-var D = { income: null, recurring: [], variable: [], log: [], deposits: [] };
+var D = { income: null, recurring: [], variable: [], log: [] };
 
 function fmt(n) { return '$' + Number(n).toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ','); }
 function fmtS(n) { return '$' + Math.round(n).toLocaleString(); }
@@ -467,14 +468,12 @@ async function loadAll() {
       sb.from('income').select('*').single(),
       sb.from('recurring').select('*').order('id'),
       sb.from('variable').select('*').order('id'),
-      sb.from('expense_log').select('*').order('date', {ascending: false}),
-      sb.from('moving_deposits').select('*').order('created_at', {ascending: false})
+      sb.from('expense_log').select('*').order('date', {ascending: false})
     ]);
     D.income = res[0].data;
     D.recurring = res[1].data || [];
     D.variable = res[2].data || [];
     D.log = res[3].data || [];
-    D.deposits = res[4].data || [];
     document.getElementById('loading').style.display = 'none';
     populateLogMonthFilter();
     renderAll();
@@ -486,9 +485,7 @@ async function loadAll() {
 }
 
 function getCurrentMonthLog() {
-  return D.log.filter(function(e) {
-    return e.date && e.date.startsWith(CUR_MONTH_PREFIX);
-  });
+  return D.log.filter(function(e) { return e.date && e.date.startsWith(CUR_MONTH_PREFIX); });
 }
 
 function getIncomeTotal() {
@@ -515,16 +512,8 @@ function getVarSpentTotal() {
 
 function getTotalSpent() { return getRecurringTotal() + getVarSpentTotal(); }
 
-function getMovingSaved() {
-  var t = {transportation: 0, rent: 0, living: 0};
-  D.deposits.forEach(function(d) { if (t[d.fund] !== undefined) t[d.fund] += Number(d.amount); });
-  return t;
-}
-
 function getCategories() {
-  var cats = D.variable.map(function(v) { return v.name; });
-  cats.push('Moving — Transportation', 'Moving — Rent', 'Moving — Living');
-  return cats;
+  return D.variable.map(function(v) { return v.name; });
 }
 
 function switchTab(id, btn) {
@@ -539,8 +528,8 @@ function renderAll() {
   renderIncome();
   renderExpenses();
   renderLog();
-  renderMoving();
   renderDashboard();
+  renderPnl();
   updateLogCatSelect();
 }
 
@@ -743,9 +732,7 @@ function getSelectedLogMonth() {
 
 function renderLog() {
   var filterMonth = getSelectedLogMonth();
-  var filtered = D.log.filter(function(e) {
-    return e.date && e.date.startsWith(filterMonth);
-  });
+  var filtered = D.log.filter(function(e) { return e.date && e.date.startsWith(filterMonth); });
   var tbody = document.getElementById('log-body');
   if (filtered.length === 0) {
     tbody.innerHTML = '<tr><td colspan="6" class="empty-state">No entries for this month</td></tr>';
@@ -770,21 +757,15 @@ async function addLogEntry() {
   var amount = parseFloat(document.getElementById('log-amount').value);
   var payment = document.getElementById('log-payment').value;
   if (!date || !desc || isNaN(amount) || amount <= 0) { showToast('Fill in all fields'); return; }
+  if (!cat) { showToast('No categories yet — add one in Expenses first'); return; }
 
   var btn = document.getElementById('log-add-btn');
   btn.disabled = true;
   setSyncState('syncing');
 
-  if (cat.indexOf('Moving —') === 0) {
-    var fund = cat.replace('Moving — ', '').toLowerCase();
-    var res = await sb.from('moving_deposits').insert({date: date, fund: fund, amount: amount}).select().single();
-    if (res.error) { showToast('Failed to save', true); setSyncState('error'); btn.disabled = false; return; }
-    D.deposits.unshift(res.data);
-  } else {
-    var res2 = await sb.from('expense_log').insert({date: date, description: desc, category: cat, amount: amount, payment: payment}).select().single();
-    if (res2.error) { showToast('Failed to save', true); setSyncState('error'); btn.disabled = false; return; }
-    D.log.unshift(res2.data);
-  }
+  var res = await sb.from('expense_log').insert({date: date, description: desc, category: cat, amount: amount, payment: payment}).select().single();
+  if (res.error) { showToast('Failed to save', true); setSyncState('error'); btn.disabled = false; return; }
+  D.log.unshift(res.data);
 
   document.getElementById('log-desc').value = '';
   document.getElementById('log-amount').value = '';
@@ -817,73 +798,10 @@ function exportLog() {
   showToast('CSV exported');
 }
 
-function renderMoving() {
-  var saved = getMovingSaved();
-  var funds = [
-    {key:'transportation', label:'Transportation', goal:7500},
-    {key:'rent', label:'Rent', goal:8500},
-    {key:'living', label:'Living', goal:19000}
-  ];
-  var totalSaved = saved.transportation + saved.rent + saved.living;
-  var totalGoal = 35000;
-  var p = pct(totalSaved, totalGoal);
-  document.getElementById('mov-saved').textContent = fmt(totalSaved);
-  document.getElementById('mov-pct').textContent = p + '%';
-  var monthSet = new Set(D.deposits.map(function(d) { return d.date ? d.date.substring(0,7) : ''; }));
-  var monthlyAvg = monthSet.size > 0 ? totalSaved / monthSet.size : 0;
-  var monthsLeft = monthlyAvg > 0 ? Math.ceil((totalGoal - totalSaved) / monthlyAvg) : null;
-  document.getElementById('mov-months').textContent = monthsLeft || '—';
-
-  document.getElementById('moving-funds').innerHTML = funds.map(function(f) {
-    var s = saved[f.key] || 0;
-    var p2 = pct(s, f.goal);
-    return '<div class="goal-row"><div class="goal-info">' +
-      '<div class="goal-label">' + f.label + '</div>' +
-      '<div class="goal-sub">' + fmt(s) + ' / ' + fmt(f.goal) + '</div>' +
-      '<div class="progress-bar"><div class="progress-fill" style="width:' + p2 + '%;background:var(--accent)"></div></div>' +
-      '</div><div class="goal-pct">' + p2 + '%</div></div>';
-  }).join('');
-
-  var logBody = document.getElementById('moving-log-body');
-  if (D.deposits.length === 0) {
-    logBody.innerHTML = '<tr><td colspan="4" class="empty-state">No deposits yet</td></tr>';
-  } else {
-    logBody.innerHTML = D.deposits.map(function(d) {
-      return '<tr><td class="mono muted">' + d.date + '</td>' +
-        '<td style="text-transform:capitalize">' + d.fund + '</td>' +
-        '<td class="right mono">' + fmt(d.amount) + '</td>' +
-        '<td><button class="del-btn" onclick="deleteDeposit(' + d.id + ')">&#215;</button></td></tr>';
-    }).join('');
-  }
-}
-
-async function addMovingDeposit() {
-  var fund = document.getElementById('mov-fund').value;
-  var amount = parseFloat(document.getElementById('mov-amount').value);
-  if (isNaN(amount) || amount <= 0) { showToast('Enter an amount'); return; }
-  var today = new Date().toISOString().split('T')[0];
-  setSyncState('syncing');
-  var res = await sb.from('moving_deposits').insert({date: today, fund: fund, amount: amount}).select().single();
-  if (res.error) { showToast('Failed to save', true); setSyncState('error'); return; }
-  D.deposits.unshift(res.data);
-  document.getElementById('mov-amount').value = '';
-  setSyncState('synced'); renderAll(); showToast('Deposit added');
-}
-
-async function deleteDeposit(id) {
-  setSyncState('syncing');
-  var res = await sb.from('moving_deposits').delete().eq('id', id);
-  if (res.error) { showToast('Failed to delete', true); setSyncState('error'); return; }
-  D.deposits = D.deposits.filter(function(d) { return d.id !== id; });
-  setSyncState('synced'); renderAll(); showToast('Removed');
-}
-
 function renderDashboard() {
   var inc = getIncomeTotal();
   var spent = getTotalSpent();
   var remaining = inc - spent;
-  var saved = getMovingSaved();
-  var totalSaved = saved.transportation + saved.rent + saved.living;
   var spentMap = getSpentByCategory();
   var recTotal = getRecurringTotal();
   var varTotal = getVarSpentTotal();
@@ -893,7 +811,38 @@ function renderDashboard() {
   var remEl = document.getElementById('d-remaining');
   remEl.textContent = fmt(remaining);
   remEl.className = 'metric-value ' + (remaining >= 0 ? 'c-green' : 'c-red');
-  document.getElementById('d-move').textContent = fmt(totalSaved);
+
+  var savingsAmt = inc - spent;
+  var savingsPct = inc > 0 ? Math.round(Math.max(0, savingsAmt) / inc * 100) : 0;
+  var savingsPctEl = document.getElementById('d-savings-pct');
+  var barEl = document.getElementById('d-savings-bar');
+  var subEl = document.getElementById('d-savings-sub');
+
+  if (inc === 0) {
+    savingsPctEl.textContent = '—';
+    savingsPctEl.className = 'metric-value c-accent';
+    barEl.style.width = '0%';
+    barEl.style.background = 'var(--accent)';
+    subEl.textContent = 'no income set';
+  } else if (savingsAmt < 0) {
+    savingsPctEl.textContent = '0%';
+    savingsPctEl.className = 'metric-value c-red';
+    barEl.style.width = '100%';
+    barEl.style.background = 'var(--danger)';
+    subEl.textContent = fmt(Math.abs(savingsAmt)) + ' over budget';
+  } else if (savingsPct < 10) {
+    savingsPctEl.textContent = savingsPct + '%';
+    savingsPctEl.className = 'metric-value c-warn';
+    barEl.style.width = savingsPct + '%';
+    barEl.style.background = 'var(--warn)';
+    subEl.textContent = fmt(savingsAmt) + ' saved this month';
+  } else {
+    savingsPctEl.textContent = savingsPct + '%';
+    savingsPctEl.className = 'metric-value c-green';
+    barEl.style.width = savingsPct + '%';
+    barEl.style.background = 'var(--accent)';
+    subEl.textContent = fmt(savingsAmt) + ' saved this month';
+  }
 
   if (D.income) {
     document.getElementById('d-joshua').textContent = fmtS(D.income.joshua || 0);
@@ -903,39 +852,111 @@ function renderDashboard() {
     document.getElementById('d-income-total').textContent = fmtS(inc);
   }
 
-  var funds = [
-    {key:'transportation', label:'Transportation', goal:7500},
-    {key:'rent', label:'Rent', goal:8500},
-    {key:'living', label:'Living', goal:19000}
-  ];
-  document.getElementById('dash-moving').innerHTML = funds.map(function(f) {
-    var s = saved[f.key] || 0;
-    var p = pct(s, f.goal);
-    return '<div class="goal-row"><div class="goal-info">' +
-      '<div class="goal-label" style="font-size:12px">' + f.label + '</div>' +
-      '<div class="goal-sub">' + fmtS(s) + ' / ' + fmtS(f.goal) + '</div>' +
-      '<div class="progress-bar"><div class="progress-fill" style="width:' + p + '%;background:var(--accent)"></div></div>' +
-      '</div><div class="goal-pct">' + p + '%</div></div>';
-  }).join('') + '<div style="display:flex;justify-content:space-between;padding-top:10px;border-top:1px solid var(--border);margin-top:4px;font-size:12px;">' +
-    '<span style="color:var(--muted)">Total saved</span>' +
-    '<span class="mono c-accent">' + fmt(totalSaved) + ' / $35,000</span></div>';
-
-  var recRows = D.recurring.map(function(r) {
-    return '<tr><td style="font-size:13px;padding:6px 0">' + r.name + '</td>' +
-      '<td class="right mono" style="font-size:13px;padding:6px 0">' + fmtS(r.amount) + '</td></tr>';
-  }).join('');
-  document.getElementById('dash-rec-table').innerHTML = recRows +
-    '<tr><td style="font-weight:500;padding-top:10px">Total</td><td class="right mono" style="font-weight:500;padding-top:10px">' + fmtS(recTotal) + '</td></tr>';
+  var recRows = D.recurring.length === 0
+    ? '<tr><td colspan="2" class="empty-state" style="padding:1rem 0">No recurring bills yet</td></tr>'
+    : D.recurring.map(function(r) {
+        return '<tr><td style="font-size:13px;padding:6px 0">' + r.name + '</td>' +
+          '<td class="right mono" style="font-size:13px;padding:6px 0">' + fmtS(r.amount) + '</td></tr>';
+      }).join('') + '<tr><td style="font-weight:500;padding-top:10px">Total</td>' +
+        '<td class="right mono" style="font-weight:500;padding-top:10px">' + fmtS(recTotal) + '</td></tr>';
+  document.getElementById('dash-rec-table').innerHTML = recRows;
 
   var varCats = D.variable.filter(function(v) { return Number(v.budget) > 0 || (spentMap[v.name] || 0) > 0; });
-  var varRows = varCats.map(function(v) {
-    var s = spentMap[v.name] || 0;
-    var over = s > Number(v.budget) && Number(v.budget) > 0;
-    return '<tr><td style="font-size:13px;padding:6px 0">' + v.name + '</td>' +
-      '<td class="right mono" style="font-size:13px;padding:6px 0;color:' + (over ? 'var(--danger)' : 'var(--text)') + '">' + fmtS(s) + '</td></tr>';
+  var varRows = varCats.length === 0
+    ? '<tr><td colspan="2" class="empty-state" style="padding:1rem 0">No variable spending this month</td></tr>'
+    : varCats.map(function(v) {
+        var s = spentMap[v.name] || 0;
+        var over = s > Number(v.budget) && Number(v.budget) > 0;
+        return '<tr><td style="font-size:13px;padding:6px 0">' + v.name + '</td>' +
+          '<td class="right mono" style="font-size:13px;padding:6px 0;color:' + (over ? 'var(--danger)' : 'var(--text)') + '">' + fmtS(s) + '</td></tr>';
+      }).join('') + '<tr><td style="font-weight:500;padding-top:10px">Total</td>' +
+        '<td class="right mono" style="font-weight:500;padding-top:10px">' + fmtS(varTotal) + '</td></tr>';
+  document.getElementById('dash-var-table').innerHTML = varRows;
+}
+
+function renderPnl() {
+  var monthSet = {};
+  for (var m = 0; m <= CUR_MONTH; m++) {
+    var key = CUR_YEAR + '-' + String(m + 1).padStart(2, '0');
+    monthSet[key] = true;
+  }
+  D.log.forEach(function(e) {
+    if (e.date) monthSet[e.date.substring(0, 7)] = true;
+  });
+
+  var months = Object.keys(monthSet).sort().reverse();
+
+  if (months.length === 0) {
+    document.getElementById('pnl-body').innerHTML =
+      '<tr><td colspan="7" class="empty-state">No data yet</td></tr>';
+    return;
+  }
+
+  var recTotal = getRecurringTotal();
+  var sales = D.income ? (D.income.sales || []) : [];
+  var fixedIncome = D.income ? ((D.income.joshua || 0) + (D.income.kylie || 0)) : 0;
+
+  var totalSavedAllTime = 0;
+  var totalSavingsRates = [];
+  var bestSaved = null;
+  var bestMonth = '';
+
+  var rows = months.map(function(prefix) {
+    var parts = prefix.split('-');
+    var yr = parseInt(parts[0]);
+    var mo = parseInt(parts[1]) - 1;
+
+    var monthlySales = (yr === CUR_YEAR && sales[mo]) ? Number(sales[mo]) : 0;
+    var inc = fixedIncome + monthlySales;
+
+    var varSpent = D.log
+      .filter(function(e) { return e.date && e.date.startsWith(prefix); })
+      .reduce(function(s, e) { return s + Number(e.amount); }, 0);
+
+    var totalSpent = recTotal + varSpent;
+    var saved = inc - totalSpent;
+    var rate = inc > 0 ? Math.round(Math.max(0, saved) / inc * 100) : 0;
+
+    totalSavedAllTime += saved;
+    if (inc > 0) totalSavingsRates.push(rate);
+    if (bestSaved === null || saved > bestSaved) {
+      bestSaved = saved;
+      bestMonth = MONTHS[mo] + ' ' + yr;
+    }
+
+    var isCurrent = prefix === CUR_MONTH_PREFIX;
+    var savedColor = saved < 0 ? 'var(--danger)' : saved === 0 ? 'var(--muted)' : 'var(--success)';
+    var rateColor = saved < 0 ? 'var(--danger)' : rate < 10 ? 'var(--warn)' : 'var(--success)';
+
+    return '<tr style="' + (isCurrent ? 'background:rgba(200,240,96,0.04);' : '') + '">' +
+      '<td style="font-weight:' + (isCurrent ? '600' : '400') + '">' +
+        MONTHS[mo] + ' ' + yr +
+        (isCurrent ? ' <span style="font-size:10px;background:var(--accent);color:var(--accent-text);padding:1px 6px;border-radius:10px;font-weight:700;vertical-align:middle;">NOW</span>' : '') +
+      '</td>' +
+      '<td class="right mono">' + fmt(inc) + '</td>' +
+      '<td class="right mono muted">' + fmt(recTotal) + '</td>' +
+      '<td class="right mono muted">' + fmt(varSpent) + '</td>' +
+      '<td class="right mono">' + fmt(totalSpent) + '</td>' +
+      '<td class="right mono" style="color:' + savedColor + '">' + fmt(saved) + '</td>' +
+      '<td class="right mono" style="color:' + rateColor + '">' + rate + '%</td>' +
+      '</tr>';
   }).join('');
-  document.getElementById('dash-var-table').innerHTML = varRows +
-    '<tr><td style="font-weight:500;padding-top:10px">Total</td><td class="right mono" style="font-weight:500;padding-top:10px">' + fmtS(varTotal) + '</td></tr>';
+
+  document.getElementById('pnl-body').innerHTML = rows;
+
+  var avgSave = months.length > 0 ? totalSavedAllTime / months.length : 0;
+  var avgRate = totalSavingsRates.length > 0
+    ? Math.round(totalSavingsRates.reduce(function(a, b) { return a + b; }, 0) / totalSavingsRates.length)
+    : 0;
+
+  document.getElementById('pnl-best').textContent = bestMonth || '—';
+  document.getElementById('pnl-avg-save').textContent = fmt(avgSave);
+  var avgRateEl = document.getElementById('pnl-avg-rate');
+  avgRateEl.textContent = avgRate + '%';
+  avgRateEl.className = 'metric-value ' + (avgRate < 10 ? 'c-warn' : 'c-green');
+  var totalSavedEl = document.getElementById('pnl-total-saved');
+  totalSavedEl.textContent = fmt(totalSavedAllTime);
+  totalSavedEl.className = 'metric-value ' + (totalSavedAllTime < 0 ? 'c-red' : 'c-accent');
 }
 
 document.getElementById('log-date').valueAsDate = new Date();
