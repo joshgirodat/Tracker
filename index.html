@@ -400,6 +400,7 @@ select option { background: #1e1e21; }
           <th class="right">Total spent</th>
           <th class="right">Saved</th>
           <th class="right">Rate</th>
+          <th style="width:32px"></th>
         </tr>
       </thead>
       <tbody id="pnl-body"></tbody>
@@ -874,9 +875,24 @@ function renderDashboard() {
   document.getElementById('dash-var-table').innerHTML = varRows;
 }
 
+function getPnlHiddenMonths() {
+  try { return JSON.parse(localStorage.getItem('pnl_hidden') || '[]'); } catch(e) { return []; }
+}
+function savePnlHiddenMonths(arr) {
+  localStorage.setItem('pnl_hidden', JSON.stringify(arr));
+}
+function hidePnlMonth(prefix) {
+  var hidden = getPnlHiddenMonths();
+  if (hidden.indexOf(prefix) === -1) hidden.push(prefix);
+  savePnlHiddenMonths(hidden);
+  renderPnl();
+}
+
 function renderPnl() {
+  var hidden = getPnlHiddenMonths();
   var monthSet = {};
-  for (var m = 0; m <= CUR_MONTH; m++) {
+
+  for (var m = 0; m < 12; m++) {
     var key = CUR_YEAR + '-' + String(m + 1).padStart(2, '0');
     monthSet[key] = true;
   }
@@ -884,11 +900,13 @@ function renderPnl() {
     if (e.date) monthSet[e.date.substring(0, 7)] = true;
   });
 
-  var months = Object.keys(monthSet).sort().reverse();
+  var months = Object.keys(monthSet).filter(function(k) {
+    return hidden.indexOf(k) === -1;
+  }).sort().reverse();
 
   if (months.length === 0) {
     document.getElementById('pnl-body').innerHTML =
-      '<tr><td colspan="7" class="empty-state">No data yet</td></tr>';
+      '<tr><td colspan="8" class="empty-state">No data — all months hidden</td></tr>';
     return;
   }
 
@@ -925,20 +943,22 @@ function renderPnl() {
     }
 
     var isCurrent = prefix === CUR_MONTH_PREFIX;
+    var isFuture = prefix > CUR_MONTH_PREFIX;
     var savedColor = saved < 0 ? 'var(--danger)' : saved === 0 ? 'var(--muted)' : 'var(--success)';
     var rateColor = saved < 0 ? 'var(--danger)' : rate < 10 ? 'var(--warn)' : 'var(--success)';
 
-    return '<tr style="' + (isCurrent ? 'background:rgba(200,240,96,0.04);' : '') + '">' +
+    return '<tr style="' + (isCurrent ? 'background:rgba(200,240,96,0.04);' : isFuture ? 'opacity:0.4;' : '') + '">' +
       '<td style="font-weight:' + (isCurrent ? '600' : '400') + '">' +
         MONTHS[mo] + ' ' + yr +
         (isCurrent ? ' <span style="font-size:10px;background:var(--accent);color:var(--accent-text);padding:1px 6px;border-radius:10px;font-weight:700;vertical-align:middle;">NOW</span>' : '') +
       '</td>' +
-      '<td class="right mono">' + fmt(inc) + '</td>' +
+      '<td class="right mono"' + (isFuture ? ' style="color:var(--muted)"' : '') + '>' + fmt(inc) + '</td>' +
       '<td class="right mono muted">' + fmt(recTotal) + '</td>' +
       '<td class="right mono muted">' + fmt(varSpent) + '</td>' +
-      '<td class="right mono">' + fmt(totalSpent) + '</td>' +
-      '<td class="right mono" style="color:' + savedColor + '">' + fmt(saved) + '</td>' +
-      '<td class="right mono" style="color:' + rateColor + '">' + rate + '%</td>' +
+      '<td class="right mono"' + (isFuture ? ' style="color:var(--muted)"' : '') + '>' + fmt(totalSpent) + '</td>' +
+      '<td class="right mono" style="color:' + (isFuture ? 'var(--muted)' : savedColor) + '">' + fmt(saved) + '</td>' +
+      '<td class="right mono" style="color:' + (isFuture ? 'var(--muted)' : rateColor) + '">' + rate + '%</td>' +
+      '<td>' + (prefix >= CUR_MONTH_PREFIX ? '' : '<button class="del-btn" title="Remove from P&L" onclick="hidePnlMonth(\'' + prefix + '\')">&#215;</button>') + '</td>' +
       '</tr>';
   }).join('');
 
