@@ -924,26 +924,26 @@ function renderPnl() {
     var yr = parseInt(parts[0]);
     var mo = parseInt(parts[1]) - 1;
 
+    var isFuture = prefix > CUR_MONTH_PREFIX;
     var monthlySales = (yr === CUR_YEAR && sales[mo]) ? Number(sales[mo]) : 0;
-    var inc = fixedIncome + monthlySales;
+    var inc = isFuture ? 0 : fixedIncome + monthlySales;
 
     var varSpent = D.log
       .filter(function(e) { return e.date && e.date.startsWith(prefix); })
       .reduce(function(s, e) { return s + Number(e.amount); }, 0);
 
-    var totalSpent = recTotal + varSpent;
+    var totalSpent = isFuture ? 0 : recTotal + varSpent;
     var saved = inc - totalSpent;
     var rate = inc > 0 ? Math.round(Math.max(0, saved) / inc * 100) : 0;
 
-    totalSavedAllTime += saved;
-    if (inc > 0) totalSavingsRates.push(rate);
-    if (bestSaved === null || saved > bestSaved) {
+    if (!isFuture) totalSavedAllTime += saved;
+    if (!isFuture && inc > 0) totalSavingsRates.push(rate);
+    if (!isFuture && (bestSaved === null || saved > bestSaved)) {
       bestSaved = saved;
       bestMonth = MONTHS[mo] + ' ' + yr;
     }
 
     var isCurrent = prefix === CUR_MONTH_PREFIX;
-    var isFuture = prefix > CUR_MONTH_PREFIX;
     var savedColor = saved < 0 ? 'var(--danger)' : saved === 0 ? 'var(--muted)' : 'var(--success)';
     var rateColor = saved < 0 ? 'var(--danger)' : rate < 10 ? 'var(--warn)' : 'var(--success)';
 
@@ -952,12 +952,12 @@ function renderPnl() {
         MONTHS[mo] + ' ' + yr +
         (isCurrent ? ' <span style="font-size:10px;background:var(--accent);color:var(--accent-text);padding:1px 6px;border-radius:10px;font-weight:700;vertical-align:middle;">NOW</span>' : '') +
       '</td>' +
-      '<td class="right mono"' + (isFuture ? ' style="color:var(--muted)"' : '') + '>' + fmt(inc) + '</td>' +
-      '<td class="right mono muted">' + fmt(recTotal) + '</td>' +
-      '<td class="right mono muted">' + fmt(varSpent) + '</td>' +
-      '<td class="right mono"' + (isFuture ? ' style="color:var(--muted)"' : '') + '>' + fmt(totalSpent) + '</td>' +
-      '<td class="right mono" style="color:' + (isFuture ? 'var(--muted)' : savedColor) + '">' + fmt(saved) + '</td>' +
-      '<td class="right mono" style="color:' + (isFuture ? 'var(--muted)' : rateColor) + '">' + rate + '%</td>' +
+      '<td class="right mono' + (isFuture ? ' muted' : '') + '">' + fmt(inc) + '</td>' +
+      '<td class="right mono muted">' + fmt(isFuture ? 0 : recTotal) + '</td>' +
+      '<td class="right mono muted">' + fmt(isFuture ? 0 : varSpent) + '</td>' +
+      '<td class="right mono' + (isFuture ? ' muted' : '') + '">' + fmt(totalSpent) + '</td>' +
+      '<td class="right mono" style="color:' + (isFuture ? 'var(--muted)' : savedColor) + '">' + fmt(isFuture ? 0 : saved) + '</td>' +
+      '<td class="right mono" style="color:' + (isFuture ? 'var(--muted)' : rateColor) + '">' + (isFuture ? '—' : rate + '%') + '</td>' +
       '<td>' + (prefix >= CUR_MONTH_PREFIX ? '' : '<button class="del-btn" title="Remove from P&L" onclick="hidePnlMonth(\'' + prefix + '\')">&#215;</button>') + '</td>' +
       '</tr>';
   }).join('');
