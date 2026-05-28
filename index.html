@@ -387,8 +387,18 @@ select option { background: #1e1e21; }
     <div class="metric"><div class="metric-label">Avg savings rate</div><div class="metric-value" id="pnl-avg-rate">—</div></div>
     <div class="metric"><div class="metric-label">Total saved (all time)</div><div class="metric-value c-accent" id="pnl-total-saved">—</div></div>
   </div>
+  <div class="card" id="pnl-restore-card" style="display:none;">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
+      <div class="card-title" style="margin:0">Hidden months</div>
+      <button class="btn-ghost" onclick="document.getElementById('pnl-restore-card').style.display='none'">Close</button>
+    </div>
+    <div id="pnl-hidden-list"></div>
+  </div>
   <div class="card">
-    <div class="card-title">Monthly summary</div>
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
+      <div class="card-title" style="margin:0">Monthly summary</div>
+      <button class="btn-ghost" id="pnl-restore-btn" onclick="togglePnlRestore()" style="display:none;">&#8635; Restore months</button>
+    </div>
     <div style="overflow-x:auto;-webkit-overflow-scrolling:touch;">
     <table style="min-width:560px;">
       <thead>
@@ -875,6 +885,37 @@ function renderDashboard() {
   document.getElementById('dash-var-table').innerHTML = varRows;
 }
 
+function togglePnlRestore() {
+  var card = document.getElementById('pnl-restore-card');
+  var hidden = getPnlHiddenMonths();
+  if (!hidden.length) { showToast('No hidden months'); return; }
+  var html = hidden.map(function(prefix) {
+    var parts = prefix.split('-');
+    var mo = parseInt(parts[1]) - 1;
+    var yr = parts[0];
+    return '<div style="display:flex;align-items:center;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--border);">' +
+      '<span style="font-size:13px">' + MONTHS[mo] + ' ' + yr + '</span>' +
+      '<button class="btn-ghost" style="color:var(--success);border-color:var(--success)" onclick="restorePnlMonth(\'' + prefix + '\')">+ Restore</button>' +
+      '</div>';
+  }).join('');
+  document.getElementById('pnl-hidden-list').innerHTML = html;
+  card.style.display = 'block';
+  card.scrollIntoView({behavior:'smooth', block:'nearest'});
+}
+
+function restorePnlMonth(prefix) {
+  var hidden = getPnlHiddenMonths().filter(function(k) { return k !== prefix; });
+  savePnlHiddenMonths(hidden);
+  renderPnl();
+  var remaining = getPnlHiddenMonths();
+  if (!remaining.length) {
+    document.getElementById('pnl-restore-card').style.display = 'none';
+  } else {
+    togglePnlRestore();
+  }
+  showToast('Month restored');
+}
+
 function getPnlHiddenMonths() {
   try { return JSON.parse(localStorage.getItem('pnl_hidden') || '[]'); } catch(e) { return []; }
 }
@@ -977,6 +1018,8 @@ function renderPnl() {
   var totalSavedEl = document.getElementById('pnl-total-saved');
   totalSavedEl.textContent = fmt(totalSavedAllTime);
   totalSavedEl.className = 'metric-value ' + (totalSavedAllTime < 0 ? 'c-red' : 'c-accent');
+
+  document.getElementById('pnl-restore-btn').style.display = hidden.length ? 'inline-block' : 'none';
 }
 
 document.getElementById('log-date').valueAsDate = new Date();
