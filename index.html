@@ -385,7 +385,20 @@ select option { background: #1e1e21; }
     <div class="metric"><div class="metric-label">Best savings month</div><div class="metric-value c-green" id="pnl-best">—</div></div>
     <div class="metric"><div class="metric-label">Avg monthly savings</div><div class="metric-value c-accent" id="pnl-avg-save">—</div></div>
     <div class="metric"><div class="metric-label">Avg savings rate</div><div class="metric-value" id="pnl-avg-rate">—</div></div>
-    <div class="metric"><div class="metric-label">Total saved (all time)</div><div class="metric-value c-accent" id="pnl-total-saved">—</div></div>
+    <div class="metric"><div class="metric-label">Total saved (all time)</div><div class="metric-value c-accent" id="pnl-total-saved" style="cursor:pointer;" onclick="openTotalSavedEdit()" title="Click to override">—</div><div style="font-size:10px;color:var(--muted);margin-top:4px;font-family:'DM Mono',monospace;" id="pnl-total-saved-note"></div></div>
+  </div>
+  <!-- Total saved override editor -->
+  <div class="card" id="pnl-override-card" style="display:none;">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
+      <div class="card-title" style="margin:0">Override total saved</div>
+      <button class="btn-ghost" onclick="document.getElementById('pnl-override-card').style.display='none'">Close</button>
+    </div>
+    <div style="font-size:12px;color:var(--muted);margin-bottom:12px;">Set a fixed number that replaces the auto-calculated total. Use this to account for savings before you started tracking.</div>
+    <div style="display:grid;grid-template-columns:1fr auto auto;gap:8px;align-items:end;">
+      <div class="field"><label>Override amount ($)</label><input type="number" id="pnl-override-input" placeholder="e.g. 2500.00" step="0.01"></div>
+      <div class="field"><label>&nbsp;</label><button class="btn-primary" onclick="saveTotalSavedOverride()">Save</button></div>
+      <div class="field"><label>&nbsp;</label><button class="btn-ghost" onclick="clearTotalSavedOverride()">Clear override</button></div>
+    </div>
   </div>
   <div class="card" id="pnl-restore-card" style="display:none;">
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
@@ -885,6 +898,38 @@ function renderDashboard() {
   document.getElementById('dash-var-table').innerHTML = varRows;
 }
 
+function getTotalSavedOverride() {
+  var v = localStorage.getItem('pnl_total_override');
+  return v !== null ? parseFloat(v) : null;
+}
+function openTotalSavedEdit() {
+  var card = document.getElementById('pnl-override-card');
+  var current = getTotalSavedOverride();
+  document.getElementById('pnl-override-input').value = current !== null ? current : '';
+  card.style.display = 'block';
+  card.scrollIntoView({behavior:'smooth', block:'nearest'});
+}
+function saveTotalSavedOverride() {
+  var val = parseFloat(document.getElementById('pnl-override-input').value);
+  if (isNaN(val)) { showToast('Enter a valid amount'); return; }
+  localStorage.setItem('pnl_total_override', val);
+  document.getElementById('pnl-override-card').style.display = 'none';
+  renderPnl();
+  showToast('Total saved updated');
+}
+function clearTotalSavedOverride() {
+  localStorage.removeItem('pnl_total_override');
+  document.getElementById('pnl-override-card').style.display = 'none';
+  renderPnl();
+  showToast('Override cleared');
+}
+
+function getPnlTrackingStart() {
+  var months = D.log.map(function(e) { return e.date ? e.date.substring(0,7) : null; }).filter(Boolean);
+  if (months.length === 0) return CUR_MONTH_PREFIX;
+  return months.slice().sort()[0];
+}
+
 function togglePnlRestore() {
   var card = document.getElementById('pnl-restore-card');
   var hidden = getPnlHiddenMonths();
@@ -954,6 +999,7 @@ function renderPnl() {
   var recTotal = getRecurringTotal();
   var sales = D.income ? (D.income.sales || []) : [];
   var fixedIncome = D.income ? ((D.income.joshua || 0) + (D.income.kylie || 0)) : 0;
+  var trackingStart = getPnlTrackingStart();
 
   var totalSavedAllTime = 0;
   var totalSavingsRates = [];
@@ -966,6 +1012,7 @@ function renderPnl() {
     var mo = parseInt(parts[1]) - 1;
 
     var isFuture = prefix > CUR_MONTH_PREFIX;
+    var isBeforeTracking = prefix < trackingStart;
     var monthlySales = (yr === CUR_YEAR && sales[mo]) ? Number(sales[mo]) : 0;
     var inc = isFuture ? 0 : fixedIncome + monthlySales;
 
@@ -973,7 +1020,8 @@ function renderPnl() {
       .filter(function(e) { return e.date && e.date.startsWith(prefix); })
       .reduce(function(s, e) { return s + Number(e.amount); }, 0);
 
-    var totalSpent = isFuture ? 0 : recTotal + varSpent;
+    var recForMonth = (isFuture || isBeforeTracking) ? 0 : recTotal;
+    var totalSpent = isFuture ? 0 : recForMonth + varSpent;
     var saved = inc - totalSpent;
     var rate = inc > 0 ? Math.round(Math.max(0, saved) / inc * 100) : 0;
 
@@ -994,7 +1042,7 @@ function renderPnl() {
         (isCurrent ? ' <span style="font-size:10px;background:var(--accent);color:var(--accent-text);padding:1px 6px;border-radius:10px;font-weight:700;vertical-align:middle;">NOW</span>' : '') +
       '</td>' +
       '<td class="right mono' + (isFuture ? ' muted' : '') + '">' + fmt(inc) + '</td>' +
-      '<td class="right mono muted">' + fmt(isFuture ? 0 : recTotal) + '</td>' +
+      '<td class="right mono muted">' + fmt(isFuture ? 0 : recForMonth) + '</td>' +
       '<td class="right mono muted">' + fmt(isFuture ? 0 : varSpent) + '</td>' +
       '<td class="right mono' + (isFuture ? ' muted' : '') + '">' + fmt(totalSpent) + '</td>' +
       '<td class="right mono" style="color:' + (isFuture ? 'var(--muted)' : savedColor) + '">' + fmt(isFuture ? 0 : saved) + '</td>' +
@@ -1016,8 +1064,11 @@ function renderPnl() {
   avgRateEl.textContent = avgRate + '%';
   avgRateEl.className = 'metric-value ' + (avgRate < 10 ? 'c-warn' : 'c-green');
   var totalSavedEl = document.getElementById('pnl-total-saved');
-  totalSavedEl.textContent = fmt(totalSavedAllTime);
-  totalSavedEl.className = 'metric-value ' + (totalSavedAllTime < 0 ? 'c-red' : 'c-accent');
+  var override = getTotalSavedOverride();
+  var displayTotal = override !== null ? override : totalSavedAllTime;
+  totalSavedEl.textContent = fmt(displayTotal);
+  totalSavedEl.className = 'metric-value c-accent ' + (displayTotal < 0 ? 'c-red' : 'c-accent');
+  document.getElementById('pnl-total-saved-note').textContent = override !== null ? 'manually set — click to edit' : 'auto-calculated — click to override';
 
   document.getElementById('pnl-restore-btn').style.display = hidden.length ? 'inline-block' : 'none';
 }
