@@ -163,6 +163,11 @@ select option { background: #1e1e21; }
 
 .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 1.25rem; }
 
+.pnl-section td { font-size: 10px; font-weight: 600; letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted); padding-top: 18px; }
+.pnl-indent td:first-child { padding-left: 24px; color: var(--muted); }
+.pnl-total td { font-weight: 600; border-top: 1px solid var(--border2); }
+.pnl-net td { font-weight: 700; font-size: 15px; border-top: 2px solid var(--border2); padding-top: 14px; }
+
 @media (max-width: 680px) {
   .two-col { grid-template-columns: 1fr; }
   nav { padding: 0 0.5rem; }
@@ -188,6 +193,7 @@ select option { background: #1e1e21; }
   td, th { padding: 8px 6px; }
   input, select { font-size: 16px; }
   .two-col .card:first-child { margin-bottom: 0; }
+  .pnl-indent td:first-child { padding-left: 16px; }
   div[style*="grid-template-columns:1fr 130px auto"] { grid-template-columns: 1fr 1fr !important; }
   div[style*="grid-template-columns:1fr 130px auto"] .field:last-child { grid-column: span 2; }
   div[style*="grid-template-columns:1fr 130px auto"] .field:last-child button { width: 100%; }
@@ -380,54 +386,30 @@ select option { background: #1e1e21; }
 <!-- P&L -->
 <div class="tab" id="tab-pnl">
   <div class="page-title">Profit &amp; Loss</div>
-  <div class="page-sub">Monthly breakdown — income, spending, and savings across all time</div>
+  <div class="page-sub" id="pnl-sub">—</div>
   <div class="metrics">
-    <div class="metric"><div class="metric-label">Best savings month</div><div class="metric-value c-green" id="pnl-best">—</div></div>
-    <div class="metric"><div class="metric-label">Avg monthly savings</div><div class="metric-value c-accent" id="pnl-avg-save">—</div></div>
-    <div class="metric"><div class="metric-label">Avg savings rate</div><div class="metric-value" id="pnl-avg-rate">—</div></div>
-    <div class="metric"><div class="metric-label">Total saved (all time)</div><div class="metric-value c-accent" id="pnl-total-saved" style="cursor:pointer;" onclick="openTotalSavedEdit()" title="Click to override">—</div><div style="font-size:10px;color:var(--muted);margin-top:4px;font-family:'DM Mono',monospace;" id="pnl-total-saved-note"></div></div>
-  </div>
-  <!-- Total saved override editor -->
-  <div class="card" id="pnl-override-card" style="display:none;">
-    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
-      <div class="card-title" style="margin:0">Override total saved</div>
-      <button class="btn-ghost" onclick="document.getElementById('pnl-override-card').style.display='none'">Close</button>
-    </div>
-    <div style="font-size:12px;color:var(--muted);margin-bottom:12px;">Set a fixed number that replaces the auto-calculated total. Use this to account for savings before you started tracking.</div>
-    <div style="display:grid;grid-template-columns:1fr auto auto;gap:8px;align-items:end;">
-      <div class="field"><label>Override amount ($)</label><input type="number" id="pnl-override-input" placeholder="e.g. 2500.00" step="0.01"></div>
-      <div class="field"><label>&nbsp;</label><button class="btn-primary" onclick="saveTotalSavedOverride()">Save</button></div>
-      <div class="field"><label>&nbsp;</label><button class="btn-ghost" onclick="clearTotalSavedOverride()">Clear override</button></div>
-    </div>
-  </div>
-  <div class="card" id="pnl-restore-card" style="display:none;">
-    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
-      <div class="card-title" style="margin:0">Hidden months</div>
-      <button class="btn-ghost" onclick="document.getElementById('pnl-restore-card').style.display='none'">Close</button>
-    </div>
-    <div id="pnl-hidden-list"></div>
+    <div class="metric"><div class="metric-label">Income YTD</div><div class="metric-value c-accent" id="pnl-income">—</div></div>
+    <div class="metric"><div class="metric-label">Spent YTD</div><div class="metric-value" id="pnl-spent">—</div></div>
+    <div class="metric"><div class="metric-label">Saved YTD</div><div class="metric-value" id="pnl-saved">—</div></div>
+    <div class="metric"><div class="metric-label">Savings rate</div><div class="metric-value" id="pnl-rate">—</div></div>
   </div>
   <div class="card">
-    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
-      <div class="card-title" style="margin:0">Monthly summary</div>
-      <button class="btn-ghost" id="pnl-restore-btn" onclick="togglePnlRestore()" style="display:none;">&#8635; Restore months</button>
+    <div class="card-title" id="pnl-statement-title">Year to date</div>
+    <table id="pnl-statement"></table>
+  </div>
+  <div class="card">
+    <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;">
+      <div class="card-title" style="margin:0">Locked months</div>
+      <button class="btn-ghost" id="pnl-locks-btn" onclick="togglePnlLocks()">Show</button>
     </div>
-    <div style="overflow-x:auto;-webkit-overflow-scrolling:touch;">
-    <table style="min-width:560px;">
-      <thead>
-        <tr>
-          <th>Month</th>
-          <th class="right">Income</th>
-          <th class="right">Recurring</th>
-          <th class="right">Variable</th>
-          <th class="right">Total spent</th>
-          <th class="right">Saved</th>
-          <th class="right">Rate</th>
-          <th style="width:32px"></th>
-        </tr>
-      </thead>
-      <tbody id="pnl-body"></tbody>
-    </table>
+    <div id="pnl-locks" style="display:none;margin-top:12px;">
+      <div style="font-size:12px;color:var(--muted);margin-bottom:12px;">Each month's fixed income and recurring bills lock in when the month ends, so later changes don't rewrite the past. Edit a month here if its numbers were different. Sales come from the Income tab and variable spending comes from the Log.</div>
+      <div style="overflow-x:auto;-webkit-overflow-scrolling:touch;">
+        <table style="min-width:360px;">
+          <thead><tr><th>Month</th><th class="right">Fixed income</th><th class="right">Recurring bills</th></tr></thead>
+          <tbody id="pnl-locks-body"></tbody>
+        </table>
+      </div>
     </div>
   </div>
 </div>
@@ -467,11 +449,13 @@ var CUR_MONTH = now.getMonth();
 var CUR_YEAR = now.getFullYear();
 var CUR_MONTH_PREFIX = CUR_YEAR + '-' + String(CUR_MONTH + 1).padStart(2, '0');
 
-var D = { income: null, recurring: [], variable: [], log: [] };
+var D = { income: null, recurring: [], variable: [], log: [], snapshots: [] };
+var SNAP_OK = true;
 
 function fmt(n) { return '$' + Number(n).toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ','); }
 function fmtS(n) { return '$' + Math.round(n).toLocaleString(); }
 function pct(a, b) { return b > 0 ? Math.min(100, Math.round(a / b * 100)) : 0; }
+function monthKey(yr, m) { return yr + '-' + String(m + 1).padStart(2, '0'); }
 
 function setSyncState(state) {
   var dot = document.getElementById('sync-dot');
@@ -492,12 +476,21 @@ async function loadAll() {
       sb.from('income').select('*').single(),
       sb.from('recurring').select('*').order('id'),
       sb.from('variable').select('*').order('id'),
-      sb.from('expense_log').select('*').order('date', {ascending: false})
+      sb.from('expense_log').select('*').order('date', {ascending: false}),
+      sb.from('monthly_snapshots').select('*').order('month')
     ]);
     D.income = res[0].data;
     D.recurring = res[1].data || [];
     D.variable = res[2].data || [];
     D.log = res[3].data || [];
+    if (res[4].error) {
+      SNAP_OK = false;
+      D.snapshots = [];
+    } else {
+      SNAP_OK = true;
+      D.snapshots = res[4].data || [];
+      await lockPastMonths();
+    }
     document.getElementById('loading').style.display = 'none';
     populateLogMonthFilter();
     renderAll();
@@ -508,14 +501,43 @@ async function loadAll() {
   }
 }
 
+// Locks fixed income + recurring total for every finished month this year that isn't locked yet
+async function lockPastMonths() {
+  if (!SNAP_OK || !D.income) return;
+  var fixed = getFixedIncome();
+  var rec = getRecurringTotal();
+  var missing = [];
+  for (var m = 0; m < CUR_MONTH; m++) {
+    var key = monthKey(CUR_YEAR, m);
+    if (!getSnapshot(key)) missing.push({ month: key, fixed_income: fixed, recurring: rec });
+  }
+  if (missing.length === 0) return;
+  var ins = await sb.from('monthly_snapshots').upsert(missing, { onConflict: 'month', ignoreDuplicates: true });
+  if (ins.error) { showToast('Could not lock past months', true); return; }
+  var res = await sb.from('monthly_snapshots').select('*').order('month');
+  if (!res.error) D.snapshots = res.data || [];
+}
+
+function getSnapshot(key) {
+  for (var i = 0; i < D.snapshots.length; i++) {
+    if (D.snapshots[i].month === key) return D.snapshots[i];
+  }
+  return null;
+}
+
 function getCurrentMonthLog() {
   return D.log.filter(function(e) { return e.date && e.date.startsWith(CUR_MONTH_PREFIX); });
+}
+
+function getFixedIncome() {
+  if (!D.income) return 0;
+  return (Number(D.income.joshua) || 0) + (Number(D.income.kylie) || 0);
 }
 
 function getIncomeTotal() {
   if (!D.income) return 0;
   var sales = D.income.sales || [];
-  return (D.income.joshua || 0) + (D.income.kylie || 0) + (sales[CUR_MONTH] || 0);
+  return getFixedIncome() + (Number(sales[CUR_MONTH]) || 0);
 }
 
 function getSpentByCategory() {
@@ -568,7 +590,7 @@ function renderIncome() {
   var j = Number(D.income.joshua) || 0;
   var k = Number(D.income.kylie) || 0;
   var sales = D.income.sales || [];
-  var s = sales[CUR_MONTH] || 0;
+  var s = Number(sales[CUR_MONTH]) || 0;
   var yearTotal = sales.reduce(function(a, v) { return a + (Number(v) || 0); }, 0);
 
   document.getElementById('inc-joshua').textContent = fmt(j);
@@ -732,6 +754,7 @@ function updateLogCatSelect() {
 
 function populateLogMonthFilter() {
   var sel = document.getElementById('log-month-filter');
+  var current = sel.value;
   var months = {};
   D.log.forEach(function(e) {
     if (e.date) {
@@ -743,15 +766,16 @@ function populateLogMonthFilter() {
   if (!months[CUR_MONTH_PREFIX]) {
     months[CUR_MONTH_PREFIX] = MONTHS[CUR_MONTH] + ' ' + CUR_YEAR;
   }
+  var selected = months[current] ? current : CUR_MONTH_PREFIX;
   var sorted = Object.keys(months).sort().reverse();
   sel.innerHTML = sorted.map(function(k) {
-    return '<option value="' + k + '"' + (k === CUR_MONTH_PREFIX ? ' selected' : '') + '>' + months[k] + '</option>';
+    return '<option value="' + k + '"' + (k === selected ? ' selected' : '') + '>' + months[k] + '</option>';
   }).join('');
 }
 
 function getSelectedLogMonth() {
   var sel = document.getElementById('log-month-filter');
-  return sel ? sel.value : CUR_MONTH_PREFIX;
+  return sel && sel.value ? sel.value : CUR_MONTH_PREFIX;
 }
 
 function renderLog() {
@@ -898,179 +922,126 @@ function renderDashboard() {
   document.getElementById('dash-var-table').innerHTML = varRows;
 }
 
-function getTotalSavedOverride() {
-  var v = localStorage.getItem('pnl_total_override');
-  return v !== null ? parseFloat(v) : null;
-}
-function openTotalSavedEdit() {
-  var card = document.getElementById('pnl-override-card');
-  var current = getTotalSavedOverride();
-  document.getElementById('pnl-override-input').value = current !== null ? current : '';
-  card.style.display = 'block';
-  card.scrollIntoView({behavior:'smooth', block:'nearest'});
-}
-function saveTotalSavedOverride() {
-  var val = parseFloat(document.getElementById('pnl-override-input').value);
-  if (isNaN(val)) { showToast('Enter a valid amount'); return; }
-  localStorage.setItem('pnl_total_override', val);
-  document.getElementById('pnl-override-card').style.display = 'none';
-  renderPnl();
-  showToast('Total saved updated');
-}
-function clearTotalSavedOverride() {
-  localStorage.removeItem('pnl_total_override');
-  document.getElementById('pnl-override-card').style.display = 'none';
-  renderPnl();
-  showToast('Override cleared');
-}
+// ---------- YEARLY P&L ----------
 
-function getPnlTrackingStart() {
-  var months = D.log.map(function(e) { return e.date ? e.date.substring(0,7) : null; }).filter(Boolean);
-  if (months.length === 0) return CUR_MONTH_PREFIX;
-  return months.slice().sort()[0];
-}
+function getYearPnl() {
+  var sales = D.income ? (D.income.sales || []) : [];
+  var liveFixed = getFixedIncome();
+  var liveRec = getRecurringTotal();
+  var t = { fixed: 0, sales: 0, recurring: 0, variable: 0, byCat: {} };
 
-function togglePnlRestore() {
-  var card = document.getElementById('pnl-restore-card');
-  var hidden = getPnlHiddenMonths();
-  if (!hidden.length) { showToast('No hidden months'); return; }
-  var html = hidden.map(function(prefix) {
-    var parts = prefix.split('-');
-    var mo = parseInt(parts[1]) - 1;
-    var yr = parts[0];
-    return '<div style="display:flex;align-items:center;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--border);">' +
-      '<span style="font-size:13px">' + MONTHS[mo] + ' ' + yr + '</span>' +
-      '<button class="btn-ghost" style="color:var(--success);border-color:var(--success)" onclick="restorePnlMonth(\'' + prefix + '\')">+ Restore</button>' +
-      '</div>';
-  }).join('');
-  document.getElementById('pnl-hidden-list').innerHTML = html;
-  card.style.display = 'block';
-  card.scrollIntoView({behavior:'smooth', block:'nearest'});
-}
-
-function restorePnlMonth(prefix) {
-  var hidden = getPnlHiddenMonths().filter(function(k) { return k !== prefix; });
-  savePnlHiddenMonths(hidden);
-  renderPnl();
-  var remaining = getPnlHiddenMonths();
-  if (!remaining.length) {
-    document.getElementById('pnl-restore-card').style.display = 'none';
-  } else {
-    togglePnlRestore();
+  for (var m = 0; m <= CUR_MONTH; m++) {
+    var snap = m < CUR_MONTH ? getSnapshot(monthKey(CUR_YEAR, m)) : null;
+    t.fixed += snap ? (Number(snap.fixed_income) || 0) : liveFixed;
+    t.recurring += snap ? (Number(snap.recurring) || 0) : liveRec;
+    t.sales += Number(sales[m]) || 0;
   }
-  showToast('Month restored');
-}
 
-function getPnlHiddenMonths() {
-  try { return JSON.parse(localStorage.getItem('pnl_hidden') || '[]'); } catch(e) { return []; }
-}
-function savePnlHiddenMonths(arr) {
-  localStorage.setItem('pnl_hidden', JSON.stringify(arr));
-}
-function hidePnlMonth(prefix) {
-  var hidden = getPnlHiddenMonths();
-  if (hidden.indexOf(prefix) === -1) hidden.push(prefix);
-  savePnlHiddenMonths(hidden);
-  renderPnl();
+  var yearStr = String(CUR_YEAR);
+  D.log.forEach(function(e) {
+    if (!e.date) return;
+    if (e.date.substring(0, 4) !== yearStr) return;
+    if (e.date.substring(0, 7) > CUR_MONTH_PREFIX) return;
+    var a = Number(e.amount) || 0;
+    t.variable += a;
+    t.byCat[e.category] = (t.byCat[e.category] || 0) + a;
+  });
+
+  t.income = t.fixed + t.sales;
+  t.spent = t.recurring + t.variable;
+  t.saved = t.income - t.spent;
+  t.rate = t.income > 0 ? Math.round(Math.max(0, t.saved) / t.income * 100) : 0;
+  return t;
 }
 
 function renderPnl() {
-  var hidden = getPnlHiddenMonths();
-  var monthSet = {};
+  var t = getYearPnl();
+  var range = CUR_MONTH === 0 ? MONTHS[0] + ' ' + CUR_YEAR : MONTHS[0] + ' – ' + MONTHS[CUR_MONTH] + ' ' + CUR_YEAR;
+  document.getElementById('pnl-sub').textContent = range + ' · ' + MONTHS[CUR_MONTH] + ' updates live, earlier months are locked';
+  document.getElementById('pnl-statement-title').textContent = CUR_YEAR + ' year to date';
 
-  for (var m = 0; m < 12; m++) {
-    var key = CUR_YEAR + '-' + String(m + 1).padStart(2, '0');
-    monthSet[key] = true;
+  document.getElementById('pnl-income').textContent = fmt(t.income);
+  document.getElementById('pnl-spent').textContent = fmt(t.spent);
+  var savedEl = document.getElementById('pnl-saved');
+  savedEl.textContent = fmt(t.saved);
+  savedEl.className = 'metric-value ' + (t.saved >= 0 ? 'c-green' : 'c-red');
+  var rateEl = document.getElementById('pnl-rate');
+  rateEl.textContent = t.income > 0 ? t.rate + '%' : '—';
+  rateEl.className = 'metric-value ' + (t.saved < 0 ? 'c-red' : t.rate < 10 ? 'c-warn' : 'c-green');
+
+  function section(label) {
+    return '<tr class="pnl-section"><td colspan="2">' + label + '</td></tr>';
   }
-  D.log.forEach(function(e) {
-    if (e.date) monthSet[e.date.substring(0, 7)] = true;
-  });
+  function line(label, val, cls, color) {
+    return '<tr' + (cls ? ' class="' + cls + '"' : '') + '><td>' + label + '</td>' +
+      '<td class="right mono"' + (color ? ' style="color:' + color + '"' : '') + '>' + fmt(val) + '</td></tr>';
+  }
 
-  var months = Object.keys(monthSet).filter(function(k) {
-    return hidden.indexOf(k) === -1;
-  }).sort().reverse();
+  var cats = Object.keys(t.byCat).sort(function(a, b) { return t.byCat[b] - t.byCat[a]; });
+  var catRows = cats.map(function(c) { return line(c, t.byCat[c], 'pnl-indent'); }).join('');
 
-  if (months.length === 0) {
-    document.getElementById('pnl-body').innerHTML =
-      '<tr><td colspan="8" class="empty-state">No data — all months hidden</td></tr>';
+  var html =
+    section('Income') +
+    line('Fixed income (Joshua + Kylie)', t.fixed) +
+    line('Sales', t.sales) +
+    line('Total income', t.income, 'pnl-total', 'var(--accent)') +
+    section('Expenses') +
+    line('Recurring bills', t.recurring) +
+    line('Variable spending', t.variable) +
+    catRows +
+    line('Total spent', t.spent, 'pnl-total') +
+    line('Net saved', t.saved, 'pnl-net', t.saved >= 0 ? 'var(--success)' : 'var(--danger)');
+  document.getElementById('pnl-statement').innerHTML = html;
+
+  renderPnlLocks();
+}
+
+function renderPnlLocks() {
+  var body = document.getElementById('pnl-locks-body');
+  if (!SNAP_OK) {
+    body.innerHTML = '<tr><td colspan="3" class="empty-state">Locked months aren\'t set up yet. Run the monthly_snapshots SQL in Supabase, then reload.</td></tr>';
     return;
   }
-
-  var recTotal = getRecurringTotal();
-  var sales = D.income ? (D.income.sales || []) : [];
-  var fixedIncome = D.income ? ((D.income.joshua || 0) + (D.income.kylie || 0)) : 0;
-  var trackingStart = getPnlTrackingStart();
-
-  var totalSavedAllTime = 0;
-  var totalSavingsRates = [];
-  var bestSaved = null;
-  var bestMonth = '';
-
-  var rows = months.map(function(prefix) {
-    var parts = prefix.split('-');
-    var yr = parseInt(parts[0]);
-    var mo = parseInt(parts[1]) - 1;
-
-    var isFuture = prefix > CUR_MONTH_PREFIX;
-    var isBeforeTracking = prefix < trackingStart;
-    var monthlySales = (yr === CUR_YEAR && sales[mo]) ? Number(sales[mo]) : 0;
-    var inc = isFuture ? 0 : fixedIncome + monthlySales;
-
-    var varSpent = D.log
-      .filter(function(e) { return e.date && e.date.startsWith(prefix); })
-      .reduce(function(s, e) { return s + Number(e.amount); }, 0);
-
-    var recForMonth = (isFuture || isBeforeTracking) ? 0 : recTotal;
-    var totalSpent = isFuture ? 0 : recForMonth + varSpent;
-    var saved = inc - totalSpent;
-    var rate = inc > 0 ? Math.round(Math.max(0, saved) / inc * 100) : 0;
-
-    if (!isFuture) totalSavedAllTime += saved;
-    if (!isFuture && inc > 0) totalSavingsRates.push(rate);
-    if (!isFuture && (bestSaved === null || saved > bestSaved)) {
-      bestSaved = saved;
-      bestMonth = MONTHS[mo] + ' ' + yr;
+  var rows = '';
+  for (var m = 0; m <= CUR_MONTH; m++) {
+    var key = monthKey(CUR_YEAR, m);
+    if (m === CUR_MONTH) {
+      rows += '<tr><td>' + MONTHS[m] + ' <span class="auto-badge">Live</span></td>' +
+        '<td class="right mono">' + fmt(getFixedIncome()) + '</td>' +
+        '<td class="right mono">' + fmt(getRecurringTotal()) + '</td></tr>';
+      continue;
     }
+    var s = getSnapshot(key);
+    if (!s) {
+      rows += '<tr><td class="muted">' + MONTHS[m] + '</td><td colspan="2" class="right muted">Not locked</td></tr>';
+      continue;
+    }
+    rows += '<tr><td>' + MONTHS[m] + '</td>' +
+      '<td class="right"><input type="number" value="' + (Number(s.fixed_income) || 0) + '" min="0" step="0.01" style="width:110px;text-align:right;" onchange="updateSnapshot(\'' + key + '\',\'fixed_income\',this.value)"></td>' +
+      '<td class="right"><input type="number" value="' + (Number(s.recurring) || 0) + '" min="0" step="0.01" style="width:110px;text-align:right;" onchange="updateSnapshot(\'' + key + '\',\'recurring\',this.value)"></td></tr>';
+  }
+  body.innerHTML = rows;
+}
 
-    var isCurrent = prefix === CUR_MONTH_PREFIX;
-    var savedColor = saved < 0 ? 'var(--danger)' : saved === 0 ? 'var(--muted)' : 'var(--success)';
-    var rateColor = saved < 0 ? 'var(--danger)' : rate < 10 ? 'var(--warn)' : 'var(--success)';
+function togglePnlLocks() {
+  var el = document.getElementById('pnl-locks');
+  var open = el.style.display === 'none';
+  el.style.display = open ? 'block' : 'none';
+  document.getElementById('pnl-locks-btn').textContent = open ? 'Hide' : 'Show';
+}
 
-    return '<tr style="' + (isCurrent ? 'background:rgba(200,240,96,0.04);' : isFuture ? 'opacity:0.4;' : '') + '">' +
-      '<td style="font-weight:' + (isCurrent ? '600' : '400') + '">' +
-        MONTHS[mo] + ' ' + yr +
-        (isCurrent ? ' <span style="font-size:10px;background:var(--accent);color:var(--accent-text);padding:1px 6px;border-radius:10px;font-weight:700;vertical-align:middle;">NOW</span>' : '') +
-      '</td>' +
-      '<td class="right mono' + (isFuture ? ' muted' : '') + '">' + fmt(inc) + '</td>' +
-      '<td class="right mono muted">' + fmt(isFuture ? 0 : recForMonth) + '</td>' +
-      '<td class="right mono muted">' + fmt(isFuture ? 0 : varSpent) + '</td>' +
-      '<td class="right mono' + (isFuture ? ' muted' : '') + '">' + fmt(totalSpent) + '</td>' +
-      '<td class="right mono" style="color:' + (isFuture ? 'var(--muted)' : savedColor) + '">' + fmt(isFuture ? 0 : saved) + '</td>' +
-      '<td class="right mono" style="color:' + (isFuture ? 'var(--muted)' : rateColor) + '">' + (isFuture ? '—' : rate + '%') + '</td>' +
-      '<td>' + (prefix >= CUR_MONTH_PREFIX ? '' : '<button class="del-btn" title="Remove from P&L" onclick="hidePnlMonth(\'' + prefix + '\')">&#215;</button>') + '</td>' +
-      '</tr>';
-  }).join('');
-
-  document.getElementById('pnl-body').innerHTML = rows;
-
-  var avgSave = months.length > 0 ? totalSavedAllTime / months.length : 0;
-  var avgRate = totalSavingsRates.length > 0
-    ? Math.round(totalSavingsRates.reduce(function(a, b) { return a + b; }, 0) / totalSavingsRates.length)
-    : 0;
-
-  document.getElementById('pnl-best').textContent = bestMonth || '—';
-  document.getElementById('pnl-avg-save').textContent = fmt(avgSave);
-  var avgRateEl = document.getElementById('pnl-avg-rate');
-  avgRateEl.textContent = avgRate + '%';
-  avgRateEl.className = 'metric-value ' + (avgRate < 10 ? 'c-warn' : 'c-green');
-  var totalSavedEl = document.getElementById('pnl-total-saved');
-  var override = getTotalSavedOverride();
-  var displayTotal = override !== null ? override : totalSavedAllTime;
-  totalSavedEl.textContent = fmt(displayTotal);
-  totalSavedEl.className = 'metric-value c-accent ' + (displayTotal < 0 ? 'c-red' : 'c-accent');
-  document.getElementById('pnl-total-saved-note').textContent = override !== null ? 'manually set — click to edit' : 'auto-calculated — click to override';
-
-  document.getElementById('pnl-restore-btn').style.display = hidden.length ? 'inline-block' : 'none';
+async function updateSnapshot(key, field, val) {
+  var amount = parseFloat(val) || 0;
+  var upd = {};
+  upd[field] = amount;
+  setSyncState('syncing');
+  var res = await sb.from('monthly_snapshots').update(upd).eq('month', key);
+  if (res.error) { showToast('Failed to save', true); setSyncState('error'); return; }
+  var s = getSnapshot(key);
+  if (s) s[field] = amount;
+  setSyncState('synced');
+  renderPnl();
+  showToast(MONTHS[parseInt(key.split('-')[1]) - 1] + ' updated');
 }
 
 document.getElementById('log-date').valueAsDate = new Date();
